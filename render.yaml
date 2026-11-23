@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: geodrone-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: NODEODM_URL
+        sync: false
+      - key: NODEODM_TOKEN
+        sync: false
+      - key: NODEODM_OPTIONS
+        value: '[{"name":"orthophoto-resolution","value":5},{"name":"dem-resolution","value":5},{"name":"dsm","value":true}]'
+      - key: UPLOAD_DIR
+        value: /tmp/geodrone-uploads
+      - key: CORS_ORIGIN
+        value: '*'
