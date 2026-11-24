@@ -98,11 +98,11 @@ const receiveImages = asyncHandler(async (req, res) => {
     const taskUuid = await submitTask(req.files);
     await db.execute('INSERT INTO processing_tasks (flight_id, task_uuid, status) VALUES (?, ?, ?)', [flightId, taskUuid, 'queued']);
     await db.execute("UPDATE flights SET status = 'queued', updated_at = NOW() WHERE id = ?", [flightId]);
-    res.status(202).json({
+    res.json({
       images: stored,
       uploadedCount: stored.length,
       failedPhotos: [],
-      message: 'Imágenes recibidas y enviadas a NodeODM.',
+      message: 'Fotos subidas correctamente',
       processing: { status: 'queued', taskId: taskUuid, statusUrl: `/api/vuelos/${flightId}/procesamiento` }
     });
   } catch (error) {

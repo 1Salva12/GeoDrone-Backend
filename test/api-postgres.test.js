@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const jwt = require('jsonwebtoken');
 const { newDb } = require('pg-mem');
 
 const tempDir = path.join(os.tmpdir(), `geodrone-api-${process.pid}`);
@@ -35,18 +36,44 @@ test('contrato de Cordenadas para PostgreSQL pasa con pg-mem', async (t) => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: 'Cordenadas', email: 'mobile@example.com', password: 'secure-password-123' })
   });
-  assert.equal(registration.status, 201);
-  const { token } = await registration.json();
+  assert.equal(registration.status, 200);
+  const registered = await registration.json();
+  assert.equal(typeof registered.user.id, 'string');
+  assert.equal(registered.user.email, 'mobile@example.com');
+  const { token } = registered;
   const authHeaders = { authorization: `Bearer ${token}` };
+
+  const login = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'mobile@example.com', password: 'secure-password-123' })
+  });
+  assert.equal(login.status, 200);
+  assert.equal(typeof (await login.json()).token, 'string');
+
+  const expiredToken = jwt.sign({}, process.env.JWT_SECRET, { subject: '1', expiresIn: -1 });
+  const expiredResponse = await fetch(`${baseUrl}/api/projects`, {
+    headers: { authorization: `Bearer ${expiredToken}` }
+  });
+  assert.equal(expiredResponse.status, 401);
 
   const projectResponse = await fetch(`${baseUrl}/api/projects`, {
     method: 'POST',
     headers: { ...authHeaders, 'content-type': 'application/json' },
     body: JSON.stringify({ name: 'Levantamiento', description: 'Prueba', locationName: 'Zona Norte' })
   });
-  assert.equal(projectResponse.status, 201);
+  assert.equal(projectResponse.status, 200);
   const project = await projectResponse.json();
   assert.equal(project.locationName, 'Zona Norte');
+  assert.match(project.createdAt, /^\d{4}-\d{2}-\d{2}$/);
+
+  const projectListResponse = await fetch(`${baseUrl}/api/projects`, { headers: authHeaders });
+  assert.equal(projectListResponse.status, 200);
+  assert.equal((await projectListResponse.json())[0].id, project.id);
+
+  const projectDetailResponse = await fetch(`${baseUrl}/api/projects/${project.id}`, { headers: authHeaders });
+  assert.equal(projectDetailResponse.status, 200);
+  assert.equal((await projectDetailResponse.json()).name, project.name);
 
   const flightResponse = await fetch(`${baseUrl}/api/projects/${project.id}/flights`, {
     method: 'POST',
@@ -59,9 +86,14 @@ test('contrato de Cordenadas para PostgreSQL pasa con pg-mem', async (t) => {
       overlapPercentage: 75
     })
   });
-  assert.equal(flightResponse.status, 201);
+  assert.equal(flightResponse.status, 200);
   const flight = await flightResponse.json();
   assert.equal(flight.projectId, project.id);
+  assert.equal(flight.status, 'PENDING');
+
+  const flightsResponse = await fetch(`${baseUrl}/api/projects/${project.id}/flights`, { headers: authHeaders });
+  assert.equal(flightsResponse.status, 200);
+  assert.equal((await flightsResponse.json())[0].flightName, 'Vuelo 1');
 
   const statusResponse = await fetch(`${baseUrl}/api/flights/${flight.id}/status`, { headers: authHeaders });
   assert.equal(statusResponse.status, 200);

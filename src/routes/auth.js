@@ -37,7 +37,7 @@ router.post('/register', asyncHandler(async (req, res) => {
     [name, email, passwordHash]
   );
   const user = { id: result.id, name, email };
-  res.status(201).json({ user, token: issueToken(user) });
+  res.json({ user: { ...user, id: String(user.id) }, token: issueToken(user) });
 }));
 
 router.post('/login', asyncHandler(async (req, res) => {
@@ -46,7 +46,10 @@ router.post('/login', asyncHandler(async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     throw httpError(401, 'Correo o contraseña incorrectos.');
   }
-  res.json({ user: { id: user.id, name: user.name, email: user.email }, token: issueToken(user) });
+  res.json({
+    user: { id: String(user.id), name: user.name, email: user.email },
+    token: issueToken(user)
+  });
 }));
 
 module.exports = router;

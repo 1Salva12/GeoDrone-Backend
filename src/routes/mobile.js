@@ -12,7 +12,7 @@ async function projectDto(project) {
     name: project.name,
     description: project.description,
     locationName: project.location_name || '',
-    createdAt: new Date(project.created_at).toISOString(),
+    createdAt: new Date(project.created_at).toISOString().slice(0, 10),
     flightCount: Number(count.count)
   };
 }
@@ -58,7 +58,7 @@ router.post('/projects', asyncHandler(async (req, res) => {
     'INSERT INTO projects (user_id, name, description, location_name) VALUES (?, ?, ?, ?) RETURNING *',
     [req.user.id, name, description, locationName]
   );
-  res.status(201).json(await projectDto(project));
+  res.json(await projectDto(project));
 }));
 
 router.get('/projects/:projectId', asyncHandler(async (req, res) => {
@@ -89,7 +89,7 @@ router.post('/projects/:projectId/flights', asyncHandler(async (req, res) => {
     INSERT INTO flights (project_id, name, flight_date, drone_model, altitude_meters, overlap_percentage)
     VALUES (?, ?, ?, ?, ?, ?) RETURNING *
   `, [projectId, name, flightDate, droneModel, altitude, overlap]);
-  res.status(201).json(await flightDto(flight));
+  res.json(await flightDto(flight));
 }));
 
 router.get('/flights/:flightId/status', asyncHandler(async (req, res) => {
